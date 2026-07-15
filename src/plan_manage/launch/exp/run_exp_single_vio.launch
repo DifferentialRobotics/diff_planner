@@ -10,9 +10,9 @@
     <arg name="local_map_size_z" default="2.0"/>
     <arg name="enable_virtual_wall" default="true"/>
     <arg name="virtual_ceil" default="2.0"/>
-    <arg name="virtual_ground" default="0.2"/>
-    <arg name="map_resolution" default="0.4"/>
-    <arg name="inflation_size" default="0.3"/>
+    <arg name="virtual_ground" default="0.1"/>
+    <arg name="map_resolution" default="0.2"/>
+    <arg name="inflation_size" default="0.4"/>
     <arg name="init_x" default="0.0"/>
     <arg name="init_y" default="0.0"/>
     <arg name="init_z" default="0.0"/>
