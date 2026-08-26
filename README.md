@@ -62,14 +62,13 @@ roslaunch diff_planner run_sim_single.launch
 
 
 ### 3. 单机预设点飞行：
-在 **[points.yaml](src/user_command/multipoint/config/points.yaml)** 文件中 **test1** 下设置期望途经点，**test_back** 下设置返程目标点，之后通过以下指令执行任务：
+在 **[points.yaml](src/user_command/multipoint/config/points.yaml)** 文件中 **points** 下设置期望途经点，之后通过以下指令执行任务：
 ```
 cd ~/workspace
 source devel/setup.zsh
 roslaunch diff_planner run_sim_single.launch
 cd ~/workspace #新建终端
 ./sh_files/pub_trigger.sh #开始执行任务 或在rviz中用2D Nav Goal插件在地图任意位置点击也能开始执行任务
-./sh_files/back.sh #开始返程规划
 ```
 注：通过修改 **[multipointplan_sim.launch](src/user_command/multipoint/launch/multipointplan_sim.launch)** 中的 **fligt_type** 可实现多种指点规划方式，如自定义到达每个途经点过程中的飞机yaw角，控制到达每个途经点后的停留时间等，详见 **[points.yaml](src/user_command/multipoint/config/points.yaml)** 顶部注释。
 

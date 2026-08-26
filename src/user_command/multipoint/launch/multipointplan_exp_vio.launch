@@ -3,9 +3,7 @@
     <arg name="yaml_path" default="$(find multipoint)/config/points.yaml" />
     <arg name="next_distance" default="0.1" />
     <arg name="start_plan" default="1" />
-    <arg name="back_plan" default="1" />
-    <arg name="auto_planning" default="0" />
-    <arg name="auto_landing" default="0" />
+    <arg name="auto_planning" default="0" />   <!-- 1=自动模式(1次8通: 起飞-巡航-自动降落), 0=手动模式(3次8通: 起飞-巡航-降落) -->
     <arg name="enable_yaw_align" default="true" />
     <arg name="yaw_align_thresh" default="1.57" />
 
@@ -14,9 +12,7 @@
         <param name="yaml_path" value="$(arg yaml_path)" />
         <param name="next_distance" value="$(arg next_distance)"/>
         <param name="start_plan" value="$(arg start_plan)"/>
-        <param name="back_plan" value="$(arg back_plan)"/>
         <param name="auto_planning" value="$(arg auto_planning)"/>
-        <param name="auto_landing" value="$(arg auto_landing)"/>
         <param name="enable_yaw_align" value="$(arg enable_yaw_align)" type="bool"/>
         <param name="yaw_align_thresh" value="$(arg yaw_align_thresh)" type="double"/>
     </node>

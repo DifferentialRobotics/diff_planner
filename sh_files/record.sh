@@ -1,5 +1,4 @@
-rosbag record --tcpnodelay /back_trigger \
-/broadcast_traj_from_planner \
+rosbag record --tcpnodelay /broadcast_traj_from_planner \
 /broadcast_traj_to_planner \
 /clicked_point \
 /debugPx4ctrl \

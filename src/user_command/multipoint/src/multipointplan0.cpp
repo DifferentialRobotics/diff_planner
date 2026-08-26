@@ -42,9 +42,6 @@ ros::Timer timer;
 // 添加新的订阅
 ros::Subscriber goal_modified_sub_;
 std::map<int, Eigen::Vector3d> modified_goals_;
-// 上次发布 /goal 的时间戳, 用于过滤迟到的旧航点 /goal_modified 消息
-// (替代已废弃的 header.seq 校验, 详见 goalModifiedCallback)
-ros::Time last_goal_pub_time_ = ros::Time(0);
 
 
 enum RC_EIGHT_STATE
@@ -277,7 +274,6 @@ void Point_send(const ros::TimerEvent& event)
         goal.pose.position.y = first_target.y();
         goal.pose.position.z = first_target.z();
         point_pub.publish(goal);
-        last_goal_pub_time_ = ros::Time::now();  // 记录本次 /goal 发布时间, 供 /goal_modified 时效过滤
         // Clear pre-alignment yaw when waypoint has no explicit yaw (yaw=-100),
         // otherwise traj_server arrival alignment would rotate at the waypoint.
         if (enable_yaw_align && pytVector[0].yaw == -100)
@@ -353,7 +349,6 @@ void Point_send(const ros::TimerEvent& event)
         goal.pose.position.y = next_target.y();
         goal.pose.position.z = next_target.z();
         point_pub.publish(goal);
-        last_goal_pub_time_ = ros::Time::now();  // 记录本次 /goal 发布时间, 供 /goal_modified 时效过滤
         // Clear pre-alignment yaw when waypoint has no explicit yaw (yaw=-100)
         if (enable_yaw_align && pytVector[counts].yaw == -100)
         {
@@ -405,8 +400,6 @@ void startplan_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
     trigger = true;
     // P0 修复: 清除上一轮飞行遗留的推离目标点, 防止旧修改点污染新一轮的到达判定
     modified_goals_.clear();
-    // 同步复位 /goal_modified 时效过滤基准 (配合 current_wp_idx 范围检查, 双保险丢弃跨轮次迟到消息)
-    last_goal_pub_time_ = ros::Time(0);
     ROS_INFO("Get start trigger.");
 }
 
@@ -488,20 +481,12 @@ void goalModifiedCallback(const geometry_msgs::PoseStamped::ConstPtr& msg)
         return;
     }
 
-    // P1 修复(重新实现): 丢弃迟到的旧航点修改消息, 改用时间戳校验
-    // 背景: header.seq 在 ROS1 中已被废弃 —— roscpp 发布时会把 seq 覆盖为
-    // "该主题的发布计数器"(从 0 开始), 应用层设置的值根本不会传递给订阅端,
-    // 因此原实现 "seq == counts" 校验永远失败, 导致障碍物内航点的所有
-    // /goal_modified 消息被无条件丢弃 (航点巡航卡在推离点的根因)。
-    // 替代方案: FSM 发布 /goal_modified 时设置 header.stamp = 发布时刻, 该字段
-    // 不会被 roscpp 改写; 若消息时间戳早于我们上次发布 /goal 的时刻,
-    // 则它属于上一个航点的迟到/重复推离消息, 丢弃之 (防止污染下一个航点的
-    // 到达判定); 正常流程下 FSM 的修改消息必然发布于收到 /goal 之后,
-    // 时间戳恒晚于 last_goal_pub_time_, 不会被误杀。
-    if (msg->header.stamp < last_goal_pub_time_)
+    // P1 修复: 校验 seq 与当前航点是否匹配, 丢弃迟到的旧航点修改消息
+    // planner 端 seq = wpt_id_ (每收到一个 /goal 先 ++), 处理第 counts-1 个航点时 seq == counts
+    if ((int)msg->header.seq != counts)
     {
-        ROS_WARN("[multipoint] Stale /goal_modified stamp=%.3f, last /goal published at %.3f. Discarded.",
-                 msg->header.stamp.toSec(), last_goal_pub_time_.toSec());
+        ROS_WARN("[multipoint] /goal_modified seq=%u mismatch, expected=%d (current waypoint %d). Discarded.",
+                 msg->header.seq, counts, current_wp_idx);
         return;
     }
 
