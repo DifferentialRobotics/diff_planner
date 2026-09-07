@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <Eigen/Dense>
 #include <fstream>
+#include <cmath>
 #include <regex>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PointStamped.h>
@@ -222,6 +223,27 @@ Eigen::Vector3d getCurrentTargetPoint(int idx)
     return Eigen::Vector3d(pytVector[idx].x, pytVector[idx].y, pytVector[idx].z);
 }
 
+// 将航点 yaw 编码进 /goal 的 orientation 四元数 (roll=pitch=0)。
+// 闭源 planner 的 FSM 从该四元数提取末端 yaw 约束 (extractGoalYaw), 传给
+// yaw_planner 作硬约束; yaw = -100 (自动) 时保持全 0 四元数, 闭源判定为
+// norm^2 < 1e-8 → terminal yaw=auto, 与改动前行为一致。
+// 开源 traj_server 不读 orientation, 仍走 /planning/yaw, 不受影响。
+static void applyGoalYaw(geometry_msgs::PoseStamped &goal_msg, double yaw)
+{
+    goal_msg.pose.orientation.x = 0.0;
+    goal_msg.pose.orientation.y = 0.0;
+    if (yaw > -100.0)
+    {
+        goal_msg.pose.orientation.z = sin(yaw * 0.5);
+        goal_msg.pose.orientation.w = cos(yaw * 0.5);
+    }
+    else
+    {
+        goal_msg.pose.orientation.z = 0.0;
+        goal_msg.pose.orientation.w = 0.0;
+    }
+}
+
 
 void Point_send(const ros::TimerEvent& event)
 {
@@ -276,6 +298,7 @@ void Point_send(const ros::TimerEvent& event)
         goal.pose.position.x = first_target.x();
         goal.pose.position.y = first_target.y();
         goal.pose.position.z = first_target.z();
+        applyGoalYaw(goal, pytVector[0].yaw);   // 编码航点 yaw 供闭源 FSM 作末端 yaw 约束
         point_pub.publish(goal);
         last_goal_pub_time_ = ros::Time::now();  // 记录本次 /goal 发布时间, 供 /goal_modified 时效过滤
         // Clear pre-alignment yaw when waypoint has no explicit yaw (yaw=-100),
@@ -352,6 +375,7 @@ void Point_send(const ros::TimerEvent& event)
         goal.pose.position.x = next_target.x();
         goal.pose.position.y = next_target.y();
         goal.pose.position.z = next_target.z();
+        applyGoalYaw(goal, pytVector[counts].yaw);  // 编码航点 yaw 供闭源 FSM 作末端 yaw 约束
         point_pub.publish(goal);
         last_goal_pub_time_ = ros::Time::now();  // 记录本次 /goal 发布时间, 供 /goal_modified 时效过滤
         // Clear pre-alignment yaw when waypoint has no explicit yaw (yaw=-100)
